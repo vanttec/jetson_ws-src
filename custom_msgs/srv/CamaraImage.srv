@@ -1,0 +1,4 @@
+bool sel
+---
+sensor_msgs/Image img_right
+sensor_msgs/Image img_left

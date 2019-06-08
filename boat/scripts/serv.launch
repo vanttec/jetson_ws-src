@@ -1,0 +1,11 @@
+<launch>
+
+
+	
+	<node pkg="boat" name="distance_server" type="distance_server.py" />
+	
+	<node pkg="boat" name="color_detector_server" type="color_detector_server.py" />
+	
+	<!--<include file="$(find zed_wrapper)/launch/zed.launch"/> -->
+
+</launch>

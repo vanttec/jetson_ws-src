@@ -1,0 +1,409 @@
+#!/usr/bin/env python
+"""
+    @modified: Wed Jan 30, 2019
+    @author: Ingrid Navarro
+    @file: detector_node.py
+    @version: 1.0
+    @brief:
+        This code implements a ROS node to perform object detection and classification
+        using YOLO detection frameworks. Node receives frames from another node and
+        publishes the coordinates of the detected objects.
+    @requirements:
+        Tested on python2.7 and python3.6.
+        OpenCV version 3.4+ (because it uses the "dnn" module).
+        Cuda version 8.0
+        Tested on ROS Kinetic.
+        Tested on Ubuntu 16.04 LTS
+"""
+from detection.detector import Detector
+from std_msgs.msg import String
+from imutils.video import VideoStream
+from imutils.video import FPS
+
+from custom_msgs.srv import ColorDeImagen
+from custom_msgs.srv import DistanceCal
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import Image
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+import imutils
+import argparse
+import numpy as np
+import time
+import rospy
+import cv2
+import math
+
+# Parse arguments
+ap = argparse.ArgumentParser()
+ap.add_argument('--config', required=True, help = 'Path to yolo config file')
+ap.add_argument('--weights', required=True, help = 'Path to yolo pre-trained weights')
+ap.add_argument('--classes', required=True, help = 'Path to text file containing class names')
+ap.add_argument('--video', required=True, help = 'Path to the video' )
+args = ap.parse_args()
+
+bridge = CvBridge()
+
+class Color():
+    BLUE  = '\033[94m'
+    GREEN = '\033[92m'
+    RED  = '\033[91m'
+    DONE  = '\033[0m'
+
+def add_brightness(image):
+    image_HLS = cv2.cvtColor(image,cv2.COLOR_RGB2HLS) ## Conversion to HLS
+    image_HLS = np.array(image_HLS, dtype = np.float64)
+    random_brightness_coefficient = 1.5 ## generates value between 0.5 and 1.5
+    image_HLS[:,:,1] = image_HLS[:,:,1]*random_brightness_coefficient ## scale pixel values up or down for channel 1(Lightness)
+    image_HLS[:,:,1][image_HLS[:,:,1]>255]  = 255 ##Sets all values above 255 to 255
+    image_HLS = np.array(image_HLS, dtype = np.uint8)
+    image_RGB = cv2.cvtColor(image_HLS,cv2.COLOR_HLS2RGB) ## Conversion to RGB
+    return image_RGB
+
+def add_darkness(image):
+    image_HLS = cv2.cvtColor(image,cv2.COLOR_RGB2HLS) ## Conversion to HLS
+    image_HLS = np.array(image_HLS, dtype = np.float64)
+    random_brightness_coefficient = 0.5 ## generates value between 0.5 and 1.5
+    image_HLS[:,:,1] = image_HLS[:,:,1]*random_brightness_coefficient ## scale pixel values up or down for channel 1(Lightness)
+    image_HLS[:,:,1][image_HLS[:,:,1]>255]  = 255 ##Sets all values above 255 to 255
+    image_HLS = np.array(image_HLS, dtype = np.uint8)
+    image_RGB = cv2.cvtColor(image_HLS,cv2.COLOR_HLS2RGB) ## Conversion to RGB
+    return image_RGB
+
+
+def calculate_distance(img,x,y,w,h):
+
+	global bridge
+
+	img = bridge.cv2_to_imgmsg(img)
+	rospy.wait_for_service("/get_distance")
+
+	service = rospy.ServiceProxy("/get_distance", DistanceCal)
+	dis = service(img,x,y,w,h)
+	#rospy.loginfo(color)
+	return dis
+
+
+
+def enviar_img(img,x,y,w,h):
+
+	global bridge
+
+	img = bridge.cv2_to_imgmsg(img, encoding = "bgr8")
+	rospy.wait_for_service("/get_color")
+	try:
+		service = rospy.ServiceProxy("/get_color", ColorDeImagen)
+		color = service(img,x,y,w,h)
+		#rospy.loginfo(color)
+		return color
+	except rospy.ServicesException as e:
+		rospy.logerr(e)
+
+
+
+
+def send_message(color, msg):
+    """ Publish message to ros node. """
+    msg = color + msg + Color.DONE
+    rospy.loginfo(msg)
+    detector_pub.publish(msg)
+
+
+def punto_medio(d,a,pm):
+
+	pm_1_y = pm[0][1] if pm[0][1]<pm[1][1] else pm[1][1]
+	pm_2_y = pm[1][1] if pm[1][1]>pm[0][1] else pm[0][1]
+
+	pm_1_x = pm[0][0] if pm[0][0]<pm[1][0] else pm[1][0]
+	pm_2_x = pm[1][0] if pm[1][0]>pm[0][0] else pm[0][0]
+
+
+	y_p = pm_1_y+(pm_2_y-pm_1_y)/2
+	x_p = pm_1_x+(pm_2_x-pm_1_x)/2
+
+	b = x_p - 500.0 if x_p>500.0 else (500.0 - x_p)*-1.0
+	if b == 0:
+		b = 0.00001
+	a = 562-y_p
+
+	angulo = math.degrees(math.atan((a)/b))
+
+	angulo = angulo + 180 if angulo < 0 else angulo
+
+	return int(x_p), int(y_p)
+
+def puntos(boxes, indices,cls_ids,H,W,frame):
+	c = -1;
+	centros, angulos, distancias, centros_p, distancias_p, angulos_p,ids, colores = [], [], [],[], [], [],[],[]
+	for ix in indices:
+
+		i = ix[0]
+		c = c+1
+		box = boxes[i]
+		x, y, w, h = box
+		x, y, w, h = int(x), int(y), int(w), int(h)
+
+
+		centro = (x+(w/2),y+(h))
+
+		b = centro[0] - W/2.0 if centro[0]>W/2.0 else (W/2 - centro[0])*-1.0
+		a = h + y
+
+		angulo = math.degrees(math.atan((H-a)/b))
+
+		a = int(a)
+		b = int(b)
+
+		angulo = angulo + 180 if angulo < 0 else angulo
+
+		angulos.append(angulo)
+
+		centros.append(centro)
+
+		color = enviar_img(frame,x,y,h,w)
+
+		color = str(color.color)
+
+		colores.append(color)
+
+
+		ids.append(cls_ids[i])
+
+		#print(ids)
+
+		if ids[c] == 1 and color != "blue":
+			angulos_p.append(angulo)
+			centros_p.append(centro)
+			distancias_p.append(0.25*840/w)
+
+		if ids[c] == 1:
+			distancias.append(0.25*840/w)
+		else:
+			distancias.append(0.25*420/w)
+
+
+		cv2.circle(frame,centro,2,(0,0,0), -1)
+
+	_, angulos_p = zip(*sorted(zip(distancias_p,angulos_p)))
+	distancias_p, centros_p = zip(*sorted(zip(distancias_p,centros_p)))
+
+
+	x_p, y_p = punto_medio(distancias_p[:2], angulos_p[:2], centros_p[:2])
+
+	cv2.line(frame, (W/2,H), (x_p,y_p), (0,255,0),2)
+
+	plt.clf()
+
+
+	for i in range(len(centros[:])):
+
+		if ids[i] == 1:
+			if colores[i] == "red":
+				col = "ro"
+			elif colores[i] == "green":
+				col = "go"
+			else:
+				col = "bo"
+		else:
+			col = "yo"
+
+		plt.plot(centros[i][0],distancias[i],col)
+
+	distancia_mayor = max(distancias_p[:2])
+	distancia_menor = min(distancias_p[:2])
+
+	distancia_puntomedio = (distancia_mayor-distancia_menor)/2 + distancia_menor
+
+	plt.plot(500,0,'ro')
+	plt.plot([x_p],[distancia_puntomedio],'r*')
+	plt.axis([0, 1000, 0, 50])
+	plt.pause(0.0001)
+	plt.draw()
+
+
+
+def detect():
+    """ Performs object detection and publishes coordinates. """
+    global image
+    global depth
+
+    # Initialize detector
+    send_message(Color.GREEN, "[INFO] Initializing TinyYOLOv3 detector.")
+    det = Detector(args.config, args.weights, args.classes)
+    (H, W) = (None, None)
+
+    # Load model
+    send_message(Color.GREEN, "[INFO] Loading network model.")
+    net = det.load_model()
+
+    # Initilialize Video Stream
+    send_message(Color.GREEN, "[INFO] Starting video stream.")
+    if args.video == "0":
+        video = cv2.VideoCapture(0)
+    else:
+        video = cv2.VideoCapture(args.video)
+
+    counter = -1
+    dets = 0
+    nondets = 0
+    detect = True
+    fps = FPS().start()
+    boxes, confidences, indices, cls_ids, colors, ids, distances = [], [], [], [], [], [], []
+
+
+    ret = True
+    while not rospy.is_shutdown():
+        # Grab next frame
+	
+        #ret, frame = video.read()
+        frame = image
+        depth_frame = depth
+        color = ""
+        diststring = ""
+
+        ##AQUI SE MODIFICA EL VIDEO
+
+        #frame = add_brightness(frame)
+        #frame = add_darkness(frame)
+
+
+        if not ret:
+        	send_message(Color.RED, "[DONE] Finished processing.")
+        	cv2.waitKey(2000)
+        	break
+
+        elif cv2.waitKey(1) & 0xFF == ord ('q'):
+            send_message(Color.RED, "[DONE] Quitting program.")
+            break
+
+        frame = imutils.resize(frame, width=1000)
+
+        depth_frame = imutils.resize(depth_frame, width=1000)
+
+        (H, W) = frame.shape[:2]
+        if det.get_w() is None or det.get_h() is None:
+            det.set_h(H)
+            det.set_w(W)
+
+        # Perform detection
+        if detect:
+            detect = False
+            dets += 1
+            # Get bounding boxes, condifences, indices and class IDs
+            boxes, confidences, indices, cls_ids = det.get_detections(net, frame)
+            # Publish detections
+            det_str = "Det: {}, BBoxes {}, Colors {}, Distance {}".format(dets, boxes, colors, distances)
+            send_message(Color.BLUE, det_str)
+            #puntos(boxes,indices,cls_ids,H,W,frame)
+
+        else:
+            nondets += 1
+            counter += 1
+            if counter == 10:
+                detect = True
+                distance = True
+                counter = 0
+
+        # If there were any previous detections, draw them
+
+
+        plt.show(block = False)
+        colors = []
+        distances = []
+
+        for ix in indices:
+			i = ix[0]
+
+			box = boxes[i]
+			x, y, w, h = box
+			x, y, w, h = int(x), int(y), int(w), int(h)
+
+			if detect == True:
+				color = enviar_img(frame,x,y,h,w)
+				dist = calculate_distance(depth_frame,x,y,h,w)
+
+                
+
+
+				if (dist.dist == -1):
+					diststring = "OUT OF RANGE"
+				else:
+					diststring = str(dist) + " m"
+
+                
+
+				color = str(color.color)
+				distances.append(dist.dist)
+
+				colors.append(color)
+
+
+
+
+			if counter == -1:
+				color = ""
+				diststring = ""
+
+
+
+			#ids.append(cls_ids[i])
+			
+			det.draw_prediction(frame, cls_ids[i], confidences[i], color,diststring, x, y, x+w, y+h)
+
+
+        fps.update()
+
+        fps.stop()
+
+        info = [
+            ("Detects: ", dets),
+            ("No detects: ", nondets),
+            ("FPS", "{:.2F}".format(fps.fps())),
+        ]
+        for (i, (k, v)) in enumerate(info):
+            text = "{}: {}".format(k, v)
+            cv2.putText(frame, text, (10, det.get_h() - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
+        # Show current frame
+
+
+
+        cv2.imshow("Frame", frame)
+        cv2.imshow("depth", depth_frame)
+
+
+    	cv2.waitKey(3)
+
+
+        rate.sleep()
+
+def callback_zed_img(img):
+	global bridge
+	global image
+	image = bridge.imgmsg_to_cv2(img)
+
+
+def callback_zed_depth(img):
+	global bridge
+	global depth
+	depth = bridge.imgmsg_to_cv2(img)
+
+	
+
+
+if __name__ == '__main__':
+    try:
+
+    	rospy.Subscriber("/zed/rgb/image_rect_color", Image, callback_zed_img)
+    	rospy.Subscriber("/zed/depth/depth_registered", Image, callback_zed_depth)
+        # Create publisher
+        detector_pub = rospy.Publisher('detections', String, queue_size=10)
+        rospy.init_node('detector')
+
+        rate = rospy.Rate(10) # 10Hz
+
+        detect()
+    except rospy.ROSInterruptException:
+        pass

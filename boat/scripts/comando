@@ -1,0 +1,7 @@
+
+
+python detector_node.py --config ~/vantec-config/yolo3-vantec.cfg --weights ~/vantec-config/yolo3-vantec.weights --classes ~/vantec-config/obj.names 
+
+
+roslaunch zed_wrapper zed.launch svo_file:=/home/fitocuan/vantec-config/videos-vantec/r1.svo
+

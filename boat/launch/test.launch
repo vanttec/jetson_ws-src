@@ -1,0 +1,14 @@
+<launch>
+    
+    
+    
+
+    <node pkg="boat" type="color_detector_server.py" name="color_detector_server" />
+    <node pkg="boat" type="detector_node2.py" name="detector" />
+    
+
+    <node pkg="communication" type="Py2_ROS_Boat_Http_Server.py" name="status" />
+
+
+
+</launch>
