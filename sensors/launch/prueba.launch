@@ -1,0 +1,25 @@
+<launch>
+    
+    
+    <!-- <include file="$(find zed_wrapper)/launch/zed.launch" />    -->
+    
+    <!--node pkg="sensors" type="imu" name="imu" />-->
+
+    <node pkg="sensors" type="heading_controller_c.py" name="heading_controller_c" />
+    
+    <node pkg="boat" type="color_detector_server.py" name="color_detector_server" />
+    
+    <node pkg="boat" type="detector_node2.py" name="detector" />
+    
+    <!--<node pkg="boat" type="angulo_punto_medio.py" name="pm"/> -->
+    
+    
+
+    <!--<node pkg="sensors" type="motors.py" name="motors" />-->
+
+
+
+    <!--Launch rosbag to record topics -->
+    <!--node type="record" pkg="rosbag" name="recorder" args="record -a -o /home/alex/catkin_ws/src/sensors/bags/CompensatorH/0,1_heading" /> -->
+
+</launch>

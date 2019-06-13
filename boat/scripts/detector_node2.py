@@ -224,10 +224,10 @@ class Detection_Node:
                 cv2.putText(frame, text, (10, det.get_h() - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
             # Show current frame
-            cv2.imshow("Frame", frame)
+            #cv2.imshow("Frame", frame)
             #print(self.depth)
         
-            cv2.waitKey(3)
+            #cv2.waitKey(3)
             rate.sleep()        
         
 
