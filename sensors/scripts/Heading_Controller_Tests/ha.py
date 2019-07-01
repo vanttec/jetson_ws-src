@@ -34,19 +34,18 @@ class Test:
         self.d_heading_pub.publish(self.dh)
 
 def main():
-    rospy.init_node('ch', anonymous=True)
+    rospy.init_node('ha', anonymous=True)
     t = Test()
     if t.testing:
-        start_time = rospy.Time.now().secs        
-        reference_heading = t.heading        
+        start_time = rospy.Time.now().secs           
         while (rospy.Time.now().secs - start_time) <= 1:
-            t.desired(0,reference_heading)
+            t.desired(0,-2.14)
             time.sleep(0.1)
         reference_heading = t.heading        
         while (rospy.Time.now().secs - start_time) <= 40:
-            t.desired(25,reference_heading)
+            t.desired(25,-2.14)
             time.sleep(0.1)
-        t.desired(0,reference_heading)
+        t.desired(0,-2.14)
         t.testing = False
         rospy.logwarn("Finished")
         E.status_pub.publish(1)

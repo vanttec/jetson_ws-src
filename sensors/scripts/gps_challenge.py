@@ -158,17 +158,17 @@ def main():
             lat = 25.653304
             lon = -100.291303
         elif navi.course == "BSC" :
-            lat = 25.653332
-            lon = -100.291456
+            lat = 29.15202
+            lon = -81.01647
         elif navi.course == "BFP" :
-            lat = 25.653332
-            lon = -100.291456
+            lat = 29.15182
+            lon = -81.01670
         elif navi.course == "BAD" :
-            lat = 25.653332
-            lon = -100.291456
+            lat = 29.15201
+            lon = -81.01672
         elif navi.course == "BRF" :
-            lat = 25.653332
-            lon = -100.291456
+            lat = 29.15203
+            lon = -81.01662
         elif navi.course == "BRD" :
             lat = 25.653332
             lon = -100.291456

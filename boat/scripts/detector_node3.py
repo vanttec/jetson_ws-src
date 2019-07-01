@@ -39,12 +39,13 @@ class Detection_Node:
         
         self.bridge = CvBridge()
         self.image = np.zeros((560,1000,3),np.uint8)
-        self.depth = np.zeros((560,1000,3),np.uint8)
+        self.img_depth = np.zeros((560,1000,3),np.uint8)
         self.points_list = [[0,0,0]]*921600
 
         
         rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, self.callback_zed_img)
-        rospy.Subscriber("/zed/zed_node/point_cloud/cloud_registered", PointCloud2, self.callback_zed_cp)
+        rospy.Subscriber("/zed/zed_node/depth/depth_registered", Image, self.callback_zed_depth)
+
 
         self.detector_pub = rospy.Publisher('/objects_detected', ObjDetectedList, queue_size=10)
         
@@ -55,15 +56,12 @@ class Detection_Node:
 
 
         
- 
+    def callback_zed_depth(self,img):
+        self.img_depth = self.bridge.imgmsg_to_cv2(img)
 
 
     
     
-    def callback_zed_cp(self,ros_cloud):
-        self.points_list = list(pc2.read_points(ros_cloud, skip_nans=True, field_names = ("x", "y", "z")))
-        #skip_nans=True
-
     def send_message(self, color, msg):
         """ Publish message to ros node. """
         
@@ -159,37 +157,13 @@ class Detection_Node:
 
                 if detect == True:
                     color = self.calculate_color(frame,x,y,h,w)
-                    print(zed_cam_size)
+                    depth = self.img_depth[y:y+h,x:x+w]
 
-                    p1= int((x+w/2)*zed_cam_size/1000) #1.28 hd
-                    p2= int((y+h/2)*zed_cam_size/1000)
-                
-                    #1280 si es HD , 672
-
-                    ind = p1+p2*zed_cam_size
-
-                    d_list = self.points_list[ind-15:ind+15]
-
-
-                    
-                    d_list2_Y = []
-                    for j in d_list:
-                        if str(j[0]) != 'nan' and str(j[0]) != 'inf':
-                            d_list2_Y.append(j[0])
-
-                    d_list2_X = []
-                    for j in d_list:
+                    d_list = []
+                    for j in depth:
                         if str(j[1]) != 'nan' and str(j[1]) != 'inf':
-                            d_list2_X.append(j[1])
+                            d_list.append(j[1])
 
-                    d_list = d_list2_Y
-                    d_list_x = d_list2_X
-                    
-
-                    if len(d_list_x) != 0:
-                        dist_x = np.mean(d_list_x)
-                    else:
-                        dist_x = 'nan'
 
                     if len(d_list) != 0:
                         dist = np.mean(d_list)
@@ -208,7 +182,7 @@ class Detection_Node:
                 
 
                     
-                    if str(dist) != 'nan' and str(dist_x) != 'nan':
+                    if str(dist) != 'nan':
                         obj = ObjDetected()
                         #print(p1,p2)
                         obj.x = x
@@ -216,7 +190,7 @@ class Detection_Node:
                         obj.h = h
                         obj.w = w
                         obj.X = dist
-                        obj.Y = dist_x
+                        obj.Y = 0
                         obj.color = color
                         obj.clase = 'bouy' if cls_ids[i] == 0 else 'marker'
                         len_list += 1

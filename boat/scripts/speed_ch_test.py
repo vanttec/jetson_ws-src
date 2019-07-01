@@ -37,7 +37,7 @@ class Speed_Challenge:
         self.InitTime = self.current()
         self.ang_change = 0
         self.ang = 0
-        self.start_gps = (0,0)
+        self.start_gps = [0,0]
         self.status = 0
 
         
@@ -169,22 +169,14 @@ class Speed_Challenge:
                 self.obj_list.append({'X' : data.objects[i].X, 'Y' : -1*data.objects[i].Y, 'color' : data.objects[i].color, 'class' : data.objects[i].clase})
 
     def straight(self):
-        start_time = rospy.Time.now().secs        
-        reference_heading = self.theta_imu        
-        while (rospy.Time.now().secs - start_time) <= 1:
-            self.desired(0,reference_heading)
-            time.sleep(0.1)
-        reference_heading = self.theta_imu        
-        while (rospy.Time.now().secs - start_time) <= 20:
-            self.desired(25,reference_heading)
-            time.sleep(0.1)
-        self.desired(0,reference_heading)
+        self.tx = 20
+        self.desired(self.tx, self.theta_imu)
 
-    def look_finding(self, curr_angle):
+    def look_finding(self):
 
         #.1 = 6 grados
 
-        self.tx = 15
+        self.tx = 1
         delta = .1
 
         if self.ang == 1:
@@ -208,59 +200,34 @@ class Speed_Challenge:
         self.desired(self.tx, self.theta_imu + .1)
 
     def desired(self, thrust, heading):
+        self.angulo_pub.publish(heading)
         self.d_thrust_pub.publish(thrust)
-        self.d_heading_pub.publish(heading)
 
 
     
 if __name__ == '__main__':
 
-    rospy.init_node('Speed_Challenge', anonymous=True)
+    rospy.init_node('Speed_Challenge_Test', anonymous=True)
     rate = rospy.Rate(10)
     
     E = Speed_Challenge()
     while E.activated :
-        '''
+        
+        
         if E.state == 0:
-            obj_list_curr = E.obj_list
-            if len(obj_list_curr) < 2:
-                E.finding_gate()
-            else:
-                sortList = sorted(obj_list_curr, key=lambda k: k['X'])
-                if sortList[0]['X'] < 5 and sortList[1]['X'] < 5 and sortList[0]['class'] == 'bouy' and sortList[1]['class'] == 'bouy':
-                    E.tx = 0
-                    E.desired(E.tx, E.theta_imu)
-                    E.state = 1
-
-
-        if E.state == 1:
-            if len(E.obj_list) >= 2:
-                E.punto_medio()
-            else:
-                initTime = E.curr_time()
-                while len(E.obj_list) < 2:
-                    if E.curr_time() - initTime > 3:
-                        E.state = 2
-                        curr_angle = E.theta_imu
-                        E.gps_start = (E.lat,E.lon)
-                        break
-        '''
-        if E.state == 0:
-            E.start_gps = [E.lat,E.lon]            
-            E.straight()
-            E.state = 1
-
-        if E.state == 1:
+            print(E.state)
             obj_list_curr = E.obj_list
             if (len(obj_list_curr) == 1) and (str(obj_list_curr[0]['class']) == 'bouy'):
                 v_x = obj_list_curr[0]['X']
-                v_y = obj_list_curr[0]['Y']   
-                E.state = 2
+                v_y = obj_list_curr[0]['Y']
+                E.start_gps = [E.lat,E.lon]
+                E.state = 1
                 
-        if E.state == 2:
+        if E.state == 1:
             print(E.state)
             E.waypoints_vuelta(v_x,v_y)
-            E.state = 3
+            E.state = 2
+            
         
 
     #rospy.Subscriber("/zed/point_cloud/cloud_registered", PointCloud2, callback_zed_cp)
