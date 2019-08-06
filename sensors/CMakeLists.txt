@@ -203,8 +203,9 @@ include_directories(
 find_package(Eigen3 REQUIRED)
 add_subdirectory(include/cpp libvncxx)
 add_executable(imu src/imu.cpp)
+add_executable(asmc src/asmc.cpp)
 
 target_link_libraries(imu ${catkin_LIBRARIES})
 target_link_libraries(imu PRIVATE libvncxx)
 target_link_libraries(imu LINK_PUBLIC pthread)
-
+target_link_libraries(asmc ${catkin_LIBRARIES})

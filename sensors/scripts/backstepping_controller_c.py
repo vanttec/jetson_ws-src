@@ -84,8 +84,8 @@ class Controller:
 #Thruster data publishers
         self.right_thruster_pub = rospy.Publisher("right_thruster", Float64, queue_size=10)
         self.left_thruster_pub = rospy.Publisher("left_thruster", Float64, queue_size=10)
-        self.u_error_pub = rospy.Publisher("u_error", Float64, queue_size=10)
-        self.psi_error_pub = rospy.Publisher("psi_error", Float64, queue_size=10)
+        #self.u_error_pub = rospy.Publisher("u_error", Float64, queue_size=10)
+        #self.psi_error_pub = rospy.Publisher("psi_error", Float64, queue_size=10)
 
 
     def dspeed_callback(self, d_speed):
@@ -190,8 +190,8 @@ class Controller:
         self.right_thruster_pub.publish(self.T_stbd)
         self.left_thruster_pub.publish(self.T_port)
 
-        self.u_error_pub.publish(self.error_u)
-        self.psi_error_pub.publish(self.degree_error)
+        #self.u_error_pub.publish(self.error_u)
+        #self.psi_error_pub.publish(self.degree_error)
 
     def run(self, u_d=0, psi_d=0):
         self.control(u_d, psi_d)
@@ -203,7 +203,7 @@ def main():
     C.start_pose
     while C.activated:
         C.run(C.u_d, C.psi_d)
-        time.sleep(0.1)
+        time.sleep(0.01)
     rospy.spin()
 if __name__ == "__main__":
     try:
