@@ -100,7 +100,7 @@ def main():
 #	rospy.init_node('motors', anonymous=True)
 	m = Motors()
 	while m.thrust:	
-		m.run(400, 400)
+		m.run(400, 314)
 #		rospy.logwarn("spin")
 		time.sleep(20)
 		m.run(0,0)

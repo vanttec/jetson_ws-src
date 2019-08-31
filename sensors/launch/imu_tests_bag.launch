@@ -1,0 +1,8 @@
+<launch>
+
+    <!--node pkg="sensors" type="imu" name="imu" /-->
+
+    <!--Launch rosbag to record topics -->
+    <node type="record" pkg="rosbag" name="recorder" args="record -a -o /media/nvidia/E161-1B949/acc/imu_test" />
+
+</launch>

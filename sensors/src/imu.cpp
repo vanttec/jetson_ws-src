@@ -31,11 +31,11 @@ int main(int argc, char *argv[])
 	//ROS Publishers for each required sensor data
 	ros::Publisher ins_pos_pub = n.advertise<geometry_msgs::Pose2D>("ins_pose", 1000);
 	ros::Publisher ins_vel_pub = n.advertise<geometry_msgs::Vector3>("ins_vel", 1000);
-	ros::Publisher ins_acc_pub = n.advertise<geometry_msgs::Vector3>("ins_acc", 1000);
-	ros::Publisher ins_ar_pub = n.advertise<geometry_msgs::Vector3>("ins_ar", 1000);
+	//ros::Publisher ins_acc_pub = n.advertise<geometry_msgs::Vector3>("ins_acc", 1000);
+	//ros::Publisher ins_ar_pub = n.advertise<geometry_msgs::Vector3>("ins_ar", 1000);
 	ros::Publisher local_vel_pub = n.advertise<geometry_msgs::Vector3>("local_vel", 1000);
 	ros::Publisher NED_pose_pub = n.advertise<geometry_msgs::Pose2D>("NED_pose", 1000);
-	ros::Publisher ECEF_pose_pub = n.advertise<geometry_msgs::Pose2D>("ECEF_pose", 1000);
+	//ros::Publisher ECEF_pose_pub = n.advertise<geometry_msgs::Pose2D>("ECEF_pose", 1000);
 	ros::Publisher ref_pub = n.advertise<geometry_msgs::Pose2D>("ref", 1000);
 
 
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	ins_ref.y = refposy;
 	ins_ref.theta = (3.141592 / 180)*(ref.yawPitchRoll.x);
 
-	ros::Rate loop_rate(100);
+	ros::Rate loop_rate(250);
 
   while (ros::ok())
   {
@@ -166,11 +166,11 @@ int main(int argc, char *argv[])
 //Data publishing
     ins_pos_pub.publish(ins_pose);
     ins_vel_pub.publish(ins_vel);
-    ins_acc_pub.publish(ins_acc);
-    ins_ar_pub.publish(ins_ar);
+    //ins_acc_pub.publish(ins_acc);
+    //ins_ar_pub.publish(ins_ar);
     local_vel_pub.publish(local_vel);
     NED_pose_pub.publish(NED_pose);
-    ECEF_pose_pub.publish(ECEF_pose);
+    //ECEF_pose_pub.publish(ECEF_pose);
     ref_pub.publish(ins_ref);
 
     ros::spinOnce();

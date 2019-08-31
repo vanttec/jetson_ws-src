@@ -133,14 +133,14 @@ class Controller:
             self.X_uu = -70.92
 
         self.error_u = self.u - u_d #Speed error
-        if (math.fabs(self.error_u) < 0.05):
+        '''if (math.fabs(self.error_u) < 0.05):
             self.error_u = 0
-        #rospy.logwarn("u error %f", self.error_u)
+        #rospy.logwarn("u error %f", self.error_u)'''
         self.error_psi = self.psi - psi_d #Yaw error
         if (math.fabs(self.error_psi) > (math.pi)):
             self.error_psi = (self.error_psi/math.fabs(self.error_psi))*(math.fabs(self.error_psi)-2*math.pi)
-        if (math.fabs(self.error_psi)) < 0.02:
-            self.error_psi = 0
+        '''if (math.fabs(self.error_psi)) < 0.02:
+            self.error_psi = 0 '''
         self.degree_error = math.degrees(self.error_psi)
         #rospy.logwarn("psi error %f", degree_error)
 

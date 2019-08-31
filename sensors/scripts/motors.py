@@ -124,7 +124,7 @@ def main():
     while m.thrust:    
         m.run(m.powerR, m.powerL)
         #rospy.logwarn("spin")
-        time.sleep(0.01)
+        time.sleep(0.05)
     rospy.spin()
 
 if __name__ == "__main__":
