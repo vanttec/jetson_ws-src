@@ -26,10 +26,13 @@ float u_d = 0;
 float psi_d = 0;
 
 //Auxiliry variables
-float u_line = 0;
-float u_last = 0;
-float u_d_line = 0;
-float u_d_last = 0;
+//float u_line = 0;
+//float u_last = 0;
+//float u_d_line = 0;
+//float u_d_last = 0;
+float e_u_int = 0;
+float e_u_last = 0;
+
 //float u_d_dot = 0; surge speed derivative, not necessary
 
 
@@ -67,7 +70,9 @@ int main(int argc, char *argv[])
   ros::Publisher right_thruster_pub = n.advertise<std_msgs::Float64>("right_thruster", 1000);
   ros::Publisher left_thruster_pub = n.advertise<std_msgs::Float64>("left_thruster", 1000);
   ros::Publisher speed_gain_pub = n.advertise<std_msgs::Float64>("speed_gain", 1000);
+  ros::Publisher speed_error_pub = n.advertise<std_msgs::Float64>("speed_error", 1000);
   ros::Publisher heading_gain_pub = n.advertise<std_msgs::Float64>("heading_gain", 1000);
+  ros::Publisher heading_error_pub = n.advertise<std_msgs::Float64>("heading_error", 1000);
 
   ros::Subscriber desired_speed_sub = n.subscribe("desired_speed", 1000, dspeed_callback);
   ros::Subscriber desired_heading_sub = n.subscribe("desired_heading", 1000, dheading_callback);
@@ -89,27 +94,27 @@ int main(int argc, char *argv[])
   float c = 0.78;
 
   //Controller gains
-  Vector2f k;
-  k << 1.2, 0.001;
-  Vector2f kmin;
-  kmin << 0.01, 0.01;
-  Vector2f k2;
-  k2 << 1.5, 10;
-  Vector2f miu;
-  miu << 0.02, 0.001;
-  Vector2f lambda;
-  lambda << 0.02, 5;
+  float k_u = 0.2;
+  float k_psi = 0.1;
+  float kmin_u = 0.01;
+  float kmin_psi = 0.02;
+  float k2_u = 0.02;
+  float k2_psi = 0.4;
+  float miu_u = 0.01;
+  float miu_psi = 0.01;
+  float lambda_u = 0.01;
+  float lambda_psi = 1;
 
-  Vector2f T;
-  T << 0, 0;
-  Vector2f Ka;
-  Ka << 0, 0;
-  Vector2f Ka_dot;
-  Ka_dot << 0, 0;
-  Vector2f Ka_dot_last;
-  Ka_dot_last << 0, 0;
-  Vector2f ua;
-  ua << 0, 0;
+  float Tx = 0;
+  float Tz = 0;
+  float Ka_u = 0;
+  float Ka_psi = 1;
+  float Ka_dot_u = 0;
+  float Ka_dot_psi = 0;
+  float Ka_dot_last_u = 0;
+  float Ka_dot_last_psi = 0;
+  float ua_u = 0;
+  float ua_psi = 0;
 
   while (ros::ok())
   {
@@ -124,138 +129,117 @@ int main(int argc, char *argv[])
 
     Nr = (-0.52)*sqrt(pow(u,2)+pow(v,2));
 
-    Vector2f g;
-    g << (1 / (m - X_u_dot)), (1 / (Iz - N_r_dot));
+    float g_u = (1 / (m - X_u_dot));
+    float g_psi = (1 / (Iz - N_r_dot));
 
-    Vector2f f;
-    f << (((m - Y_v_dot)*v*r + (Xuu*u_abs*u + Xu*u)) / (m - X_u_dot)), (((-X_u_dot + Y_v_dot)*u*v + (Nr*r)) / (Iz - N_r_dot));
+    float f_u = (((m - Y_v_dot)*v*r + (Xuu*u_abs*u + Xu*u)) / (m - X_u_dot));
+    float f_psi (((-X_u_dot + Y_v_dot)*u*v + (Nr*r)) / (Iz - N_r_dot));
 
-    u_line = (0.004)*(u + u_last)/2 + u_line;
-    u_last = u;
+    //u_line = (0.004)*(u + u_last)/2 + u_line; //integral of the surge speed
+    //u_last = u;
 
-    u_d_line = (0.004)*(u_d + u_d_last)/2 + u_d_line;
+    //u_d_line = (0.004)*(u_d + u_d_last)/2 + u_d_line; //integral of the desired surge speed
     //u_d_dot = (u_d - u_d_last) / 0.01; //Derivative, not necessary
-    u_d_last = u_d;
+    //u_d_last = u_d;
 
-    Vector2f zeta;
-    zeta << u_line, theta;
-
-    Vector2f zeta_dot;
-    zeta_dot << u, r;
-
-    Vector2f dzeta;
-    dzeta << u_d_line, psi_d;
-
-    Vector2f dzeta_dot;
-    dzeta_dot << u_d, 0;
-
-    Vector2f e = zeta - dzeta;
-    //if (abs(e(0)) < 0.05){
-    //    e(0) = 0;
+    float e_u = u_d - u;
+    float e_psi = psi_d - theta;
+    //if (abs(e_u) < 0.05){ //tolerance of 0.05 m/s
+    //    e_u = 0;
     //}
-    //if (abs(e(1)) < 0.02){
-    //    e(1) = 0;
+    //if (abs(e_psi) < 0.01){ //tolerance of 0.01 radians
+    //    e_psi = 0;
     //}
-    Vector2f e_dot = zeta_dot - dzeta_dot;
-    //if (abs(e_dot(0)) < 0.5){
-    //    e_dot(0) = 0;
-    //}
-    //Vector2f s;
-    //s << (e_dot(0) + lambda(0)*e(0)), (e_dot(1) + lambda(1)*e(1));
-    float s0 = (e_dot(0) + (lambda(0)*e(0)));
-    float s1 = (e_dot(1) + (lambda(1)*e(1)));
+    e_u_int = (0.004)*(e_u + e_u_last)/2 + e_u_int; //integral of the surge speed error
+    e_u_last = e_u;
+
+    float e_psi_dot = 0 - r;
+
+    float sigma_u = e_u + lambda_u * e_u_int;
+    float sigma_psi = e_psi_dot + lambda_psi * e_psi;
     
-    //float s0abs = abs(s(0));
-    //float s1abs = abs(s(1));
-    float s0abs = abs(s0);
-    float s1abs = abs(s1);
-    //Vector2f s_abs;
-    //s_abs << s0abs, s1abs;
+    float sigma_u_abs = abs(sigma_u);
+    float sigma_psi_abs = abs(sigma_psi);
+    
+    int sign_u_sm = 0;
+    int sign_psi_sm = 0;
 
-    int sign0 = 0;
-    int sign1 = 0;
-
-    if (Ka(0) > kmin(0)){
-        //float signvar = s_abs(0) - miu(0);
-        float signvar = s0abs - miu(0);
+    if (Ka_u > kmin_u){
+        float signvar = sigma_u_abs - miu_u;
         if (signvar == 0){
-          sign0 = 0;
+          sign_u_sm = 0;
         }
         else {
-          sign0 = copysign(1,signvar);
+          sign_u_sm = copysign(1,signvar);
         }
-        Ka_dot(0) = k(0) * sign0;
+        Ka_dot_u = k_u * sign_u_sm;
     }
     else{
-      Ka_dot(0) = kmin(0);
+      Ka_dot_u = kmin_u;
     } 
 
-    if (Ka(1) > kmin(1)){
-      //float signvar = s_abs(1) - miu(1);
-      float signvar = s1abs - miu(1);      
+    if (Ka_psi > kmin_psi){
+      float signvar = sigma_psi_abs - miu_psi;      
       if (signvar == 0){
-        sign1 = 0;
+        sign_psi_sm = 0;
       }
       else {
-        sign1 = copysign(1,signvar);
+        sign_psi_sm = copysign(1,signvar);
       }
-      Ka_dot(1) = k(1) * sign1;
+      Ka_dot_psi = k_psi * sign_psi_sm;
     }
     else{
-      Ka_dot(1) = kmin(1);
+      Ka_dot_psi = kmin_psi;
     }
 
-    Ka = (0.004)*(Ka_dot + Ka_dot_last)/2 + Ka;
-    Ka_dot_last = Ka_dot;
+    Ka_u = (0.004)*(Ka_dot_u + Ka_dot_last_u)/2 + Ka_u; //integral to get the speed adaptative gain
+    Ka_dot_last_u = Ka_dot_u;
 
-    //if (s(0) = 0){    
-    if (s0 == 0){
-      sign0 = 0;
+    Ka_psi = (0.004)*(Ka_dot_psi + Ka_dot_last_psi)/2 + Ka_psi; //integral to get the heading adaptative gain
+    Ka_dot_last_psi = Ka_dot_psi;
+
+    int sign_u = 0;
+    int sign_psi = 0;
+
+    if (sigma_u == 0){
+      sign_u = 0;
     }
     else {
-      //sign0 = copysign(1,s(0));
-      sign0 = copysign(1,s0);
+      sign_u = copysign(1,sigma_u);
     }
-    //ua(0) = (-Ka(0))*sqrt(s_abs(0))*sign0 - k2(0)*s(0);
-    ua(0) = ((-Ka(0)) * sqrt(s0abs) * sign0) - (k2(0)*s0);
+    ua_u = ((-Ka_u) * sqrt(sigma_u_abs) * sign_u) - (k2_u*sigma_u);
 
-    //if (s(1) = 0){
-    if (s1 == 0){
-      sign1 = 0;
+    if (sigma_psi == 0){
+      sign_psi = 0;
     }
     else {
-      //sign1 = copysign(1,s(1));
-      sign1 = copysign(1,s1);
+      sign_psi = copysign(1,sigma_psi);
     }
-    //ua(1) = (-Ka(1))*sqrt(s_abs(1))*sign1 - k2(1)*s(1);
-    ua(1) = ((-Ka(1)) * sqrt(s1abs) * sign1) - (k2(1)*s1);
+    ua_psi = ((-Ka_psi) * sqrt(sigma_psi_abs) * sign_psi) - (k2_psi*sigma_psi);
 
-    T(0) = (f(0) - (lambda(0)*e_dot(0) ) + ua(0));
-    T(1) = (f(1) - (lambda(1)*e_dot(1)) + ua(1));
-    T(0) = T(0) / g(0);
-    T(1) = T(1) / g(1);
+    Tx = ((lambda_u * e_u) - f_u - ua_u) / g_u; //surge force
+    Tz = ((lambda_psi * e_psi_dot) - f_psi - ua_psi) / g_psi; //yaw rate moment
     
-    
-    if (T(0) > 73){
-      T(0) = 73;
+    if (Tx > 73){
+      Tx = 73;
     }
-    else if (T(0) < -60){
-      T(0) = -60;
+    else if (Tx < -60){
+      Tx = -60;
     }
-    if (T(1) > 14){
-      T(1) = 14;
+    if (Tz > 14){
+      Tz = 14;
     }
-    else if (T(1) < -14){
-      T(1) = -14;
+    else if (Tz < -14){
+      Tz = -14;
     }
     
     if (u_d == 0){
-      T(0) = 0;
-      T(1) = 0;
+      Tx = 0;
+      Tz = 0;
     }
 
-    Tport = (T(0) / 2) + (T(1) / B);
-    Tstbd = (T(0) / (2*c)) - (T(1) / (B*c));
+    Tport = (Tx / 2) + (Tz / B);
+    Tstbd = (Tx / (2*c)) - (Tz / (B*c));
 
     
     if (Tstbd > 36.5){
@@ -287,17 +271,25 @@ int main(int argc, char *argv[])
     std_msgs::Float64 sg;
     std_msgs::Float64 hg;
 
+    std_msgs::Float64 eu;
+    std_msgs::Float64 epsi;
+
     rt.data = Tstbd;
     lt.data = Tport;
     
-    sg.data = Ka(0);
-    hg.data = Ka(1);
+    sg.data = Ka_u;
+    hg.data = Ka_psi;
+
+    eu.data = e_u;
+    epsi.data = e_psi;
 
     right_thruster_pub.publish(rt);
     left_thruster_pub.publish(lt);
 
     speed_gain_pub.publish(sg);
+    speed_error_pub.publish(eu);
     heading_gain_pub.publish(hg);
+    heading_error_pub.publish(epsi);
 
     ros::spinOnce();
 

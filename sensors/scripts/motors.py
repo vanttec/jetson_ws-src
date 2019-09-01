@@ -36,7 +36,7 @@ class Motors:
 
         #serial communication Handler
         self.ser = serial.Serial(self.serial_port, self.baudRate)
-        time.sleep(2)
+        time.sleep(1)
 
     def right_callback(self, right_t):
         self.powerR = right_t.data
@@ -65,7 +65,7 @@ class Motors:
     def move_thrusters(self,powerR=1500, powerL=1500):
         #validate the pwm range
         if powerR < 1100 or powerR > 1900 or powerL < 1100 or powerL > 1900:
-            print("Thruster power must be between 1100 - 1900")
+            rospy.logwarn("Thruster power must be between 1100 - 1900")
         else:
             #Format motors value
             pR = str(powerR)
@@ -87,18 +87,18 @@ class Motors:
     def move(self, powerR=0,powerL=0):
         #validate the pwm range
         if powerR < -400 or powerR > 400 or powerL < -400 or powerL > 400:
-            print("The power is not on the correct range")
+            rospy.logwarn("The power is not on the correct range")
         else:
             realPowerValueR = round(powerR + 1500)
             realPowerValueL = round(powerL + 1500)
             self.move_thrusters(realPowerValueR,realPowerValueL)
-            print('moving')
+            #print('moving')
             #while(utility.previousLeftMotorValue != powerL or utility.previousRightMotorValue != powerR):
 
     def newtons(self, powerR=0, powerL=0):
         #validate the Newtons range
         if (powerR < -30 or powerR > 36.5 or powerL < -30 or powerL > 36.5):
-            print("Saturation range")
+            rospy.logwarn("Saturation range")
             realPowerValueR = powerR * 0.5
             realPowerValueL =  powerL * 0.5
 
@@ -113,18 +113,19 @@ class Motors:
                 realPowerValueL = round((powerL / 36.5 * 385)+1515)
 
         self.move_thrusters(realPowerValueR,realPowerValueL)
-        print('moving')
+        #print('moving')
 
     def run(self, powerR = 0, powerL = 0):
         self.newtons(powerR, powerL)
 
 def main():
     rospy.init_node('motors', anonymous=True)
+    rate = rospy.Rate(50) # 50hz
     m = Motors()
-    while m.thrust:    
-        m.run(m.powerR, m.powerL)
-        #rospy.logwarn("spin")
-        time.sleep(0.05)
+    while not rospy.is_shutdown():    
+        while m.thrust:    
+            m.run(m.powerR, m.powerL)
+            rate.sleep()
     rospy.spin()
 
 if __name__ == "__main__":
